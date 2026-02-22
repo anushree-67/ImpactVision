@@ -13,7 +13,7 @@ import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
 import { Sparkles, Brain, Zap, Loader2, CheckCircle2, RefreshCw, Activity, TrendingUp, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { motion, AnimatePresence } from "framer-motion";
 
 function DashboardContent() {
@@ -55,28 +55,35 @@ function DashboardContent() {
       const res = await runSimulation({ rawText: inputText });
       setActiveResult(res);
       
+      // Generate Decision ID and Save
+      const decisionCol = collection(db, 'decisions');
+      const decisionDocRef = doc(decisionCol);
       const decisionData = {
+        id: decisionDocRef.id,
         userId: user.uid,
         rawText: inputText,
         structuredInput: res.structuredInput,
         createdAt: new Date().toISOString()
       };
 
-      const decisionRef = await addDocumentNonBlocking(collection(db, 'decisions'), decisionData);
+      setDocumentNonBlocking(decisionDocRef, decisionData, {});
       
-      if (decisionRef) {
-        const simData = {
-          userId: user.uid,
-          decisionId: decisionRef.id,
-          results: {
-            metricsByHorizon: res.metricsByHorizon,
-            recommendations: res.recommendations,
-            structuredInput: res.structuredInput
-          },
-          createdAt: new Date().toISOString()
-        };
-        addDocumentNonBlocking(collection(db, 'simulations'), simData);
-      }
+      // Generate Simulation ID and Save
+      const simCol = collection(db, 'simulations');
+      const simDocRef = doc(simCol);
+      const simData = {
+        id: simDocRef.id,
+        userId: user.uid,
+        decisionId: decisionDocRef.id,
+        results: {
+          metricsByHorizon: res.metricsByHorizon,
+          recommendations: res.recommendations,
+          structuredInput: res.structuredInput
+        },
+        createdAt: new Date().toISOString()
+      };
+
+      setDocumentNonBlocking(simDocRef, simData, {});
 
       toast({
         title: "Simulation Initialized",
