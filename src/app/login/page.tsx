@@ -10,14 +10,12 @@ import { useAuth, useUser } from "@/firebase";
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  GoogleAuthProvider, 
-  signInWithPopup,
   signInAnonymously
 } from "firebase/auth";
-import { Sparkles, Chrome, Mail, Lock, Loader2, ArrowRight, Zap, UserCircle, AlertCircle } from "lucide-react";
+import { Sparkles, Mail, Lock, Loader2, ArrowRight, Zap, UserCircle, AlertCircle } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { useToast } from "@/hooks/use-toast";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 export default function LoginPage() {
   const auth = useAuth();
@@ -29,7 +27,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user) {
       router.push("/dashboard");
@@ -53,46 +50,16 @@ export default function LoginPage() {
       
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
         message = isLogin 
-          ? "No neural record found. Ensure your email is correct or create a new Neural ID." 
+          ? "No neural record found. Check credentials or create a new Neural ID." 
           : "Invalid credentials. Ensure your email is correct and password is at least 6 characters.";
       } else if (error.code === 'auth/email-already-in-use') {
         message = "This email is already registered. Please sign in instead.";
-      } else if (error.code === 'auth/weak-password') {
-        message = "Password must be at least 6 characters.";
       }
 
       toast({
         variant: "destructive",
         title: "Synchronization Failure",
         description: message,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    if (!auth) return;
-    setIsLoading(true);
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      console.error("Google Auth Error:", error);
-      
-      let message = error.message;
-      if (error.code === 'auth/operation-not-allowed') {
-        message = "Google sign-in is not enabled. Please enable it in the Firebase Console Authentication settings.";
-      } else if (error.code === 'auth/popup-blocked') {
-        message = "The sign-in popup was blocked by your browser. Please allow popups and try again.";
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        message = "Sign-in process was cancelled.";
-      }
-
-      toast({
-        variant: "destructive",
-        title: "Neural Link Error",
-        description: message
       });
     } finally {
       setIsLoading(false);
@@ -200,26 +167,15 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <Button 
-                  variant="outline" 
-                  className="h-12 gap-2 border-white/10 bg-white/5 hover:bg-white/10 hover:border-primary/30 text-white rounded-xl transition-all active:scale-95" 
-                  onClick={handleGoogleSignIn}
-                  disabled={isLoading}
-                >
-                  <Chrome className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-bold">Google</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="h-12 gap-2 border-white/10 bg-white/5 hover:bg-white/10 hover:border-accent/30 text-white rounded-xl transition-all active:scale-95" 
-                  onClick={handleGuestSignIn}
-                  disabled={isLoading}
-                >
-                  <UserCircle className="h-4 w-4 text-accent" />
-                  <span className="text-xs font-bold">Guest Access</span>
-                </Button>
-              </div>
+              <Button 
+                variant="outline" 
+                className="w-full h-12 gap-2 border-white/10 bg-white/5 hover:bg-white/10 hover:border-accent/30 text-white rounded-xl transition-all active:scale-95" 
+                onClick={handleGuestSignIn}
+                disabled={isLoading}
+              >
+                <UserCircle className="h-4 w-4 text-accent" />
+                <span className="text-xs font-bold uppercase tracking-widest">Instant Guest Access</span>
+              </Button>
             </CardContent>
             <CardFooter className="flex flex-col gap-4 border-t border-white/5 bg-white/5 py-6">
               <button 
@@ -233,7 +189,7 @@ export default function LoginPage() {
               <div className="flex items-start gap-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
                 <AlertCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  <strong>Neural Tip:</strong> If Google sign-in fails, ensure you've enabled it in your Firebase Console settings or use <strong>Guest Access</strong> for instant entry.
+                  <strong>Neural Tip:</strong> For the fastest experience without an account, use <strong>Guest Access</strong> to begin your simulation immediately.
                 </p>
               </div>
             </CardFooter>
