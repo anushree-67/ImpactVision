@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/navbar";
@@ -8,6 +9,12 @@ import { Sparkles, ArrowRight, TrendingUp, ShieldCheck, HeartPulse, BrainCircuit
 import Image from "next/image";
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background font-body">
       <Navbar />
@@ -103,7 +110,7 @@ export default function Home() {
       
       <footer className="py-12 border-t">
         <div className="container mx-auto px-4 text-center text-muted-foreground text-sm">
-          <p>© {new Date().getFullYear()} Impact Vision. All rights reserved.</p>
+          <p>© {mounted ? new Date().getFullYear() : '----'} Impact Vision. All rights reserved.</p>
         </div>
       </footer>
     </div>

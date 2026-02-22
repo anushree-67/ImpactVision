@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,11 @@ export function Navbar() {
   const auth = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     if (auth) {
@@ -40,40 +46,44 @@ export function Navbar() {
           </div>
         </Link>
 
-        {user ? (
-          <div className="flex items-center gap-8">
-            <div className="hidden md:flex items-center gap-8">
-              <NavLink href="/dashboard" active={pathname === "/dashboard"} icon={<LayoutDashboard className="h-4 w-4" />}>
-                Interface
-              </NavLink>
-              <NavLink href="/history" active={pathname === "/history"} icon={<History className="h-4 w-4" />}>
-                Archives
-              </NavLink>
-            </div>
-            <div className="flex items-center gap-4 bg-white/5 p-1.5 rounded-2xl border border-white/5">
-              <Avatar className="h-10 w-10 border border-primary/20">
-                <AvatarImage src={user.photoURL || ""} />
-                <AvatarFallback className="bg-primary/10 text-primary font-bold">{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleLogout} 
-                className="h-10 w-10 rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-colors"
-              >
-                <LogOut className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-4">
-            <Link href="/login">
-              <Button variant="ghost" className="text-muted-foreground hover:text-white">Access</Button>
-            </Link>
-            <Link href="/login">
-              <Button className="bg-primary text-black font-bold neon-glow-primary hover:bg-primary/90">Initialize</Button>
-            </Link>
-          </div>
+        {mounted && (
+          <>
+            {user ? (
+              <div className="flex items-center gap-8">
+                <div className="hidden md:flex items-center gap-8">
+                  <NavLink href="/dashboard" active={pathname === "/dashboard"} icon={<LayoutDashboard className="h-4 w-4" />}>
+                    Interface
+                  </NavLink>
+                  <NavLink href="/history" active={pathname === "/history"} icon={<History className="h-4 w-4" />}>
+                    Archives
+                  </NavLink>
+                </div>
+                <div className="flex items-center gap-4 bg-white/5 p-1.5 rounded-2xl border border-white/5">
+                  <Avatar className="h-10 w-10 border border-primary/20">
+                    <AvatarImage src={user.photoURL || ""} />
+                    <AvatarFallback className="bg-primary/10 text-primary font-bold">{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={handleLogout} 
+                    className="h-10 w-10 rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4">
+                <Link href="/login">
+                  <Button variant="ghost" className="text-muted-foreground hover:text-white">Access</Button>
+                </Link>
+                <Link href="/login">
+                  <Button className="bg-primary text-black font-bold neon-glow-primary hover:bg-primary/90">Initialize</Button>
+                </Link>
+              </div>
+            )}
+          </>
         )}
       </div>
     </nav>
