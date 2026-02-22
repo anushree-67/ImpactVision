@@ -1,0 +1,29 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-vision",
+      "description": "A person looking into a digital future visualization",
+      "imageUrl": "https://picsum.photos/seed/vision/1200/800",
+      "imageHint": "future technology visualization"
+    },
+    {
+      "id": "health-habit",
+      "description": "A healthy lifestyle visualization",
+      "imageUrl": "https://picsum.photos/seed/health/400/300",
+      "imageHint": "healthy lifestyle"
+    },
+    {
+      "id": "finance-habit",
+      "description": "Financial growth and planning",
+      "imageUrl": "https://picsum.photos/seed/finance/400/300",
+      "imageHint": "finance growth"
+    },
+    {
+      "id": "career-habit",
+      "description": "Career advancement and skill building",
+      "imageUrl": "https://picsum.photos/seed/career/400/300",
+      "imageHint": "career success"
+    }
+  ]
+}

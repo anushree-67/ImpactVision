@@ -1,0 +1,42 @@
+
+{
+  "entities": {
+    "Decision": {
+      "title": "Decision",
+      "description": "A user-entered habit or decision.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "rawText": { "type": "string" },
+        "structuredInput": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "rawText", "structuredInput", "createdAt"]
+    },
+    "Simulation": {
+      "title": "Simulation",
+      "description": "The resulting simulation data for a specific decision.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "decisionId": { "type": "string" },
+        "results": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "decisionId", "results", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": ["password", "google.com"]
+  },
+  "firestore": {
+    "/decisions/{decisionId}": {
+      "schema": "#/backend/entities/Decision",
+      "description": "Collection of user decisions."
+    },
+    "/simulations/{simulationId}": {
+      "schema": "#/backend/entities/Simulation",
+      "description": "Collection of simulation results."
+    }
+  }
+}
