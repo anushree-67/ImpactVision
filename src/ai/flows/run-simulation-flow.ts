@@ -9,7 +9,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { parseDecisionWithRules } from '@/lib/rule-based-parser';
+import { parseDecision } from './simulate-decision-parser';
 import { runSimulationLogic } from '@/lib/simulation-engine';
 import { generateImpactRecommendations } from './impact-recommendations-generator';
 
@@ -46,20 +46,13 @@ const runSimulationFlow = ai.defineFlow(
     outputSchema: RunSimulationOutputSchema,
   },
   async (input) => {
-    // 1. Rule-based parsing (as requested)
-    const structuredInput = parseDecisionWithRules(input.rawText);
+    // 1. Parse Input using GenAI
+    const structuredInput = await parseDecision({ rawDecisionText: input.rawText });
 
-    // 2. Run simulation logic
-    const metricsByHorizon = runSimulationLogic({
-      category: structuredInput.category,
-      action: structuredInput.action,
-      value: structuredInput.value,
-      unit: structuredInput.unit,
-      frequency: structuredInput.frequency,
-      description: `Habit: ${structuredInput.action} ${structuredInput.value} ${structuredInput.unit} ${structuredInput.frequency}`
-    });
+    // 2. Run deterministic simulation logic
+    const metricsByHorizon = runSimulationLogic(structuredInput);
 
-    // 3. Generate recommendations using existing AI flow
+    // 3. Generate actionable recommendations using GenAI
     const recommendations = await generateImpactRecommendations({
       structuredInput: {
         category: structuredInput.category,

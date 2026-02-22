@@ -1,18 +1,27 @@
-
 'use client';
 
 import { Navbar } from "@/components/navbar";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { History, Calendar, ArrowUpRight, TrendingUp, Heart, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function HistoryPage() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, isUserLoading, router]);
 
   const simulationsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -26,18 +35,34 @@ export default function HistoryPage() {
 
   const { data: history, isLoading } = useCollection(simulationsQuery);
 
+  if (isUserLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-12 max-w-5xl">
+          <Skeleton className="h-10 w-64 mb-8" />
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) return null;
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-12 max-w-5xl">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div className="space-y-1">
             <h1 className="text-4xl font-headline font-bold">Trajectory History</h1>
             <p className="text-muted-foreground">Review your past projections and habit compounding analysis.</p>
           </div>
-          <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3">
+          <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3 self-start">
             <div className="bg-primary/10 p-2 rounded-lg">
               <History className="h-6 w-6 text-primary" />
             </div>
@@ -50,7 +75,7 @@ export default function HistoryPage() {
 
         {isLoading ? (
           <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-32 w-full rounded-2xl" />
             ))}
           </div>
@@ -62,8 +87,8 @@ export default function HistoryPage() {
               </div>
               <h2 className="text-2xl font-bold">No history found</h2>
               <p className="text-muted-foreground max-w-xs mx-auto">Start by simulating your first habit on the dashboard to see your compounding results here.</p>
-              <Link href="/dashboard">
-                <Button className="mt-4 px-8">Go to Dashboard</Button>
+              <Link href="/dashboard" className="block mt-4">
+                <Button className="px-8">Go to Dashboard</Button>
               </Link>
             </CardContent>
           </Card>
@@ -71,10 +96,11 @@ export default function HistoryPage() {
           <div className="grid gap-4">
             {history.map((sim: any) => {
               const structured = sim.results?.structuredInput;
-              const fiveYearMetric = sim.results?.metricsByHorizon?.[3];
+              const metrics = sim.results?.metricsByHorizon;
+              const fiveYearMetric = metrics ? metrics[metrics.length - 1] : null;
               
               return (
-                <Card key={sim.id} className="decision-card-hover group border-l-4 border-l-primary/50">
+                <Card key={sim.id} className="decision-card-hover group border-l-4 border-l-primary/50 overflow-hidden">
                   <CardContent className="p-0">
                     <div className="flex flex-col md:flex-row items-stretch">
                       <div className="md:w-72 p-6 bg-muted/20 border-r space-y-3 flex flex-col justify-center">
@@ -85,9 +111,11 @@ export default function HistoryPage() {
                         <h3 className="text-lg font-bold leading-tight group-hover:text-primary transition-colors capitalize">
                            {structured?.action || 'Unknown Action'}
                         </h3>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <Badge variant="secondary" className="capitalize text-[10px]">{structured?.category}</Badge>
-                          <Badge variant="outline" className={`capitalize text-[10px] ${fiveYearMetric?.riskLevel === 'HIGH' ? 'text-destructive' : 'text-accent'}`}>{fiveYearMetric?.riskLevel} Risk</Badge>
+                          <Badge variant="outline" className={`capitalize text-[10px] ${fiveYearMetric?.riskLevel === 'HIGH' ? 'text-destructive border-destructive/30' : 'text-accent border-accent/30'}`}>
+                            {fiveYearMetric?.riskLevel || 'N/A'} Risk
+                          </Badge>
                         </div>
                       </div>
                       <div className="flex-1 p-6 flex flex-wrap gap-8 items-center justify-between">
@@ -96,7 +124,7 @@ export default function HistoryPage() {
                             <p className="text-xs text-muted-foreground flex items-center justify-center md:justify-start gap-1">
                               <Heart className="h-3 w-3" /> Health (5y)
                             </p>
-                            <p className="font-bold text-lg">{fiveYearMetric?.healthScore || 0}%</p>
+                            <p className="font-bold text-lg">{fiveYearMetric?.healthScore ?? 0}%</p>
                           </div>
                           <div className="space-y-1 text-center md:text-left">
                             <p className="text-xs text-muted-foreground flex items-center justify-center md:justify-start gap-1">
@@ -108,7 +136,7 @@ export default function HistoryPage() {
                             <p className="text-xs text-muted-foreground flex items-center justify-center md:justify-start gap-1">
                               <TrendingUp className="h-3 w-3" /> Skill (5y)
                             </p>
-                            <p className="font-bold text-lg">{fiveYearMetric?.skillScore || 0}%</p>
+                            <p className="font-bold text-lg">{fiveYearMetric?.skillScore ?? 0}%</p>
                           </div>
                         </div>
                         <Link href={`/dashboard?id=${sim.id}`}>

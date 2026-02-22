@@ -1,8 +1,7 @@
-
 'use client';
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,21 +9,22 @@ import { Badge } from "@/components/ui/badge";
 import { runSimulation } from "@/ai/flows/run-simulation-flow";
 import { SimulationCharts } from "@/components/simulation-charts";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { collection, doc, serverTimestamp } from "firebase/firestore";
-import { Sparkles, Brain, Zap, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { collection, doc } from "firebase/firestore";
+import { Sparkles, Brain, Zap, Loader2, CheckCircle2, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 function DashboardContent() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const simulationId = searchParams.get('id');
+  const { toast } = useToast();
   
   const [inputText, setInputText] = useState("");
   const [isSimulating, setIsSimulating] = useState(false);
   const [activeResult, setActiveResult] = useState<any>(null);
-  const { toast } = useToast();
 
   // Load specific simulation if ID is provided
   const simRef = useMemoFirebase(() => {
@@ -32,20 +32,24 @@ function DashboardContent() {
     return doc(db, 'simulations', simulationId);
   }, [db, simulationId]);
 
-  const { data: loadedSim, isLoading: isPageLoading } = useDoc(simRef);
+  const { data: loadedSim, isLoading: isDocLoading } = useDoc(simRef);
 
   useEffect(() => {
     if (loadedSim) {
       setActiveResult(loadedSim.results);
-      // We don't have the original rawText in simulation doc usually, 
-      // but in this app it's stored in the linked decision doc.
-      // For simplicity in this view, we'll just show the result.
     }
   }, [loadedSim]);
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, isUserLoading, router]);
 
   const handleSimulate = async () => {
     if (!inputText || !user || !db) return;
     setIsSimulating(true);
+    setActiveResult(null);
     try {
       const res = await runSimulation({ rawText: inputText });
       setActiveResult(res);
@@ -88,7 +92,13 @@ function DashboardContent() {
     }
   };
 
-  if (isPageLoading) {
+  const clearView = () => {
+    router.push("/dashboard");
+    setActiveResult(null);
+    setInputText("");
+  };
+
+  if (isUserLoading || isDocLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -109,36 +119,46 @@ function DashboardContent() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Brain className="h-5 w-5 text-primary" />
-                  New Decision
+                  {simulationId ? "Viewing Simulation" : "New Decision"}
                 </CardTitle>
                 <CardDescription>
-                  Enter a habit (e.g., "sleep 8 hours daily", "spend ₹200 on coffee").
+                  {simulationId ? "Reviewing historical data." : "Enter a habit (e.g., 'sleep 8 hours daily')."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <textarea
-                  className="w-full min-h-[120px] p-3 rounded-lg border bg-muted/50 focus:ring-2 focus:ring-primary outline-none text-sm transition-all"
-                  placeholder='Describe your habit here...'
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                />
-                <Button 
-                  className="w-full h-12 gap-2" 
-                  onClick={handleSimulate}
-                  disabled={isSimulating || !inputText}
-                >
-                  {isSimulating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Simulating...
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="h-4 w-4 fill-current" />
-                      Run Simulation
-                    </>
-                  )}
-                </Button>
+                {!simulationId && (
+                  <>
+                    <textarea
+                      className="w-full min-h-[120px] p-3 rounded-lg border bg-muted/50 focus:ring-2 focus:ring-primary outline-none text-sm transition-all"
+                      placeholder='Describe your habit here...'
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                    />
+                    <Button 
+                      className="w-full h-12 gap-2" 
+                      onClick={handleSimulate}
+                      disabled={isSimulating || !inputText}
+                    >
+                      {isSimulating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Simulating...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-4 w-4 fill-current" />
+                          Run Simulation
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
+                {simulationId && (
+                  <Button variant="outline" className="w-full gap-2" onClick={clearView}>
+                    <RefreshCw className="h-4 w-4" />
+                    New Simulation
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
