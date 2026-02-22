@@ -1,11 +1,10 @@
-
 'use client';
 
 import { Navbar } from "@/components/navbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, limit } from "firebase/firestore";
 import { History, Calendar, ArrowUpRight, TrendingUp, Heart, Wallet, Box, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -25,17 +24,23 @@ export default function HistoryPage() {
     }
   }, [user, isUserLoading, router]);
 
+  // Simplified query: removed orderBy to avoid requiring a composite index for now.
+  // Firestore automatically creates single-field indices for userId.
   const simulationsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "simulations"), 
       where("userId", "==", user.uid),
-      orderBy("createdAt", "desc"),
       limit(20)
     );
   }, [db, user?.uid]);
 
   const { data: history, isLoading } = useCollection(simulationsQuery);
+
+  // Sort history client-side since we removed server-side ordering
+  const sortedHistory = history ? [...history].sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  ) : null;
 
   return (
     <div className="min-h-screen bg-cyber-gradient relative">
@@ -69,7 +74,7 @@ export default function HistoryPage() {
               <Skeleton key={i} className="h-40 w-full rounded-2xl bg-white/5" />
             ))}
           </div>
-        ) : !history || history.length === 0 ? (
+        ) : !sortedHistory || sortedHistory.length === 0 ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Card className="text-center p-24 glass-card border-dashed border-2 border-white/10 bg-transparent rounded-[3rem]">
               <CardContent className="space-y-6">
@@ -88,7 +93,7 @@ export default function HistoryPage() {
           </motion.div>
         ) : (
           <div className="grid gap-6">
-            {history.map((sim: any, idx: number) => {
+            {sortedHistory.map((sim: any, idx: number) => {
               const structured = sim.results?.structuredInput;
               const metrics = sim.results?.metricsByHorizon;
               const fiveYearMetric = metrics ? metrics[metrics.length - 1] : null;

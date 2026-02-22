@@ -32,6 +32,10 @@ interface SecurityRuleRequest {
   resource?: {
     data: any;
   };
+  originalError?: {
+    code: string;
+    message: string;
+  };
 }
 
 /**
@@ -72,9 +76,10 @@ function buildAuthObject(currentUser: User | null): FirebaseAuthObject | null {
  * Builds the complete, simulated request object for the error message.
  * It safely tries to get the current authenticated user.
  * @param context The context of the failed Firestore operation.
+ * @param originalError Optional original FirestoreError for better diagnostics.
  * @returns A structured request object.
  */
-function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
+function buildRequestObject(context: SecurityRuleContext, originalError?: any): SecurityRuleRequest {
   let authObject: FirebaseAuthObject | null = null;
   try {
     // Safely attempt to get the current user.
@@ -85,7 +90,6 @@ function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
     }
   } catch {
     // This will catch errors if the Firebase app is not yet initialized.
-    // In this case, we'll proceed without auth information.
   }
 
   return {
@@ -93,6 +97,10 @@ function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
     method: context.operation,
     path: `/databases/(default)/documents/${context.path}`,
     resource: context.requestResourceData ? { data: context.requestResourceData } : undefined,
+    originalError: originalError ? {
+      code: originalError.code,
+      message: originalError.message
+    } : undefined
   };
 }
 
@@ -102,8 +110,16 @@ function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
  * @returns A string containing the error message and the JSON payload.
  */
 function buildErrorMessage(requestObject: SecurityRuleRequest): string {
-  return `Missing or insufficient permissions: The following request was denied by Firestore Security Rules:
+  const baseMessage = `Missing or insufficient permissions: The following request was denied by Firestore Security Rules:
 ${JSON.stringify(requestObject, null, 2)}`;
+  
+  if (requestObject.originalError && requestObject.originalError.code !== 'permission-denied') {
+    return `Firestore Error (${requestObject.originalError.code}): ${requestObject.originalError.message}
+Note: This error was intercepted as a potential permission issue.
+${baseMessage}`;
+  }
+  
+  return baseMessage;
 }
 
 /**
@@ -114,8 +130,8 @@ ${JSON.stringify(requestObject, null, 2)}`;
 export class FirestorePermissionError extends Error {
   public readonly request: SecurityRuleRequest;
 
-  constructor(context: SecurityRuleContext) {
-    const requestObject = buildRequestObject(context);
+  constructor(context: SecurityRuleContext, originalError?: any) {
+    const requestObject = buildRequestObject(context, originalError);
     super(buildErrorMessage(requestObject));
     this.name = 'FirebaseError';
     this.request = requestObject;
