@@ -14,7 +14,7 @@ import {
   signInWithPopup,
   signInAnonymously
 } from "firebase/auth";
-import { Sparkles, Chrome, Mail, Lock, Loader2, ArrowRight, Zap, UserCircle } from "lucide-react";
+import { Sparkles, Chrome, Mail, Lock, Loader2, ArrowRight, Zap, UserCircle, AlertCircle } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -53,18 +53,18 @@ export default function LoginPage() {
       
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
         message = isLogin 
-          ? "Invalid email or password. Please check your credentials." 
-          : "The credentials provided are invalid. Ensure your email is correct.";
+          ? "No neural record found. If you're new, please select 'Create New Neural ID' below to register." 
+          : "The credentials provided are invalid. Ensure your email is correct and password is at least 6 characters.";
       } else if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered. Try signing in instead.";
+        message = "This email is already registered in the archives. Please sign in instead.";
       } else if (error.code === 'auth/weak-password') {
-        message = "Password should be at least 6 characters.";
+        message = "Password must be at least 6 characters for secure encryption.";
       }
 
       toast({
         variant: "destructive",
-        title: "Authentication Failure",
-        description: message
+        title: "Synchronization Failure",
+        description: message,
       });
     } finally {
       setIsLoading(false);
@@ -80,8 +80,8 @@ export default function LoginPage() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Google Sign-In Error",
-        description: error.message
+        title: "Neural Link Error",
+        description: "Google authentication failed. Please retry or use another pathway."
       });
     } finally {
       setIsLoading(false);
@@ -95,12 +95,12 @@ export default function LoginPage() {
       await signInAnonymously(auth);
       toast({
         title: "Guest Access Initialized",
-        description: "Welcome to the simulation, explorer."
+        description: "Welcome to the simulation. Your data will be temporary."
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Guest Access Error",
+        title: "Guest Uplink Error",
         description: error.message
       });
     } finally {
@@ -109,16 +109,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cyber-gradient relative overflow-hidden">
+    <div className="min-h-screen bg-cyber-gradient relative overflow-hidden flex flex-col">
       <div className="absolute inset-0 cyber-grid pointer-events-none opacity-20"></div>
       
-      {/* Background Blobs */}
       <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/20 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/10 rounded-full blur-[120px] animate-pulse pointer-events-none" style={{ animationDelay: '2s' }}></div>
 
       <Navbar />
 
-      <div className="container mx-auto px-4 py-20 flex justify-center items-center relative z-10">
+      <div className="flex-1 container mx-auto px-4 py-12 flex justify-center items-center relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -207,11 +206,11 @@ export default function LoginPage() {
                   disabled={isLoading}
                 >
                   <UserCircle className="h-4 w-4 text-accent" />
-                  <span className="text-xs font-bold">Guest</span>
+                  <span className="text-xs font-bold">Guest Access</span>
                 </Button>
               </div>
             </CardContent>
-            <CardFooter className="justify-center border-t border-white/5 bg-white/5 py-6">
+            <CardFooter className="flex flex-col gap-4 border-t border-white/5 bg-white/5 py-6">
               <button 
                 onClick={() => setIsLogin(!isLogin)}
                 className="text-xs text-primary hover:text-primary/80 font-bold uppercase tracking-widest flex items-center gap-2 transition-colors"
@@ -219,6 +218,13 @@ export default function LoginPage() {
                 <Zap className="h-3 w-3 fill-current" />
                 {isLogin ? "Request New Neural ID" : "Neural Archive Member? Login"}
               </button>
+              
+              <div className="flex items-start gap-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
+                <AlertCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  <strong>Developer Tip:</strong> Use <strong>Guest Access</strong> for instant entry without creating an account.
+                </p>
+              </div>
             </CardFooter>
           </Card>
         </motion.div>
