@@ -1,37 +1,55 @@
+
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { runSimulation } from "@/ai/flows/run-simulation-flow";
 import { SimulationCharts } from "@/components/simulation-charts";
-import { useUser, useFirestore } from "@/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { Sparkles, Brain, Zap, Loader2, CheckCircle2 } from "lucide-react";
+import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { collection, doc, serverTimestamp } from "firebase/firestore";
+import { Sparkles, Brain, Zap, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { user } = useUser();
   const db = useFirestore();
+  const searchParams = useSearchParams();
+  const simulationId = searchParams.get('id');
+  
   const [inputText, setInputText] = useState("");
   const [isSimulating, setIsSimulating] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [activeResult, setActiveResult] = useState<any>(null);
   const { toast } = useToast();
+
+  // Load specific simulation if ID is provided
+  const simRef = useMemoFirebase(() => {
+    if (!db || !simulationId) return null;
+    return doc(db, 'simulations', simulationId);
+  }, [db, simulationId]);
+
+  const { data: loadedSim, isLoading: isPageLoading } = useDoc(simRef);
+
+  useEffect(() => {
+    if (loadedSim) {
+      setActiveResult(loadedSim.results);
+      // We don't have the original rawText in simulation doc usually, 
+      // but in this app it's stored in the linked decision doc.
+      // For simplicity in this view, we'll just show the result.
+    }
+  }, [loadedSim]);
 
   const handleSimulate = async () => {
     if (!inputText || !user || !db) return;
     setIsSimulating(true);
     try {
-      // Call the consolidated Genkit flow
       const res = await runSimulation({ rawText: inputText });
+      setActiveResult(res);
       
-      setResult(res);
-      
-      // Save to Firestore on client to respect Security Rules and "Authorization Independence"
       const decisionData = {
         userId: user.uid,
         rawText: inputText,
@@ -39,42 +57,27 @@ export default function DashboardPage() {
         createdAt: new Date().toISOString()
       };
 
-      const decisionsRef = collection(db, 'decisions');
-      addDoc(decisionsRef, decisionData)
-        .then((docRef) => {
-          const simData = {
-            userId: user.uid,
-            decisionId: docRef.id,
-            results: {
-              metricsByHorizon: res.metricsByHorizon,
-              recommendations: res.recommendations
-            },
-            createdAt: new Date().toISOString()
-          };
-          
-          const simulationsRef = collection(db, 'simulations');
-          addDoc(simulationsRef, simData).catch(async (e) => {
-             errorEmitter.emit('permission-error', new FirestorePermissionError({
-              path: simulationsRef.path,
-              operation: 'create',
-              requestResourceData: simData,
-            }));
-          });
-        })
-        .catch(async (e) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: decisionsRef.path,
-            operation: 'create',
-            requestResourceData: decisionData,
-          }));
-        });
+      const decisionRef = await addDocumentNonBlocking(collection(db, 'decisions'), decisionData);
+      
+      if (decisionRef) {
+        const simData = {
+          userId: user.uid,
+          decisionId: decisionRef.id,
+          results: {
+            metricsByHorizon: res.metricsByHorizon,
+            recommendations: res.recommendations,
+            structuredInput: res.structuredInput
+          },
+          createdAt: new Date().toISOString()
+        };
+        addDocumentNonBlocking(collection(db, 'simulations'), simData);
+      }
 
       toast({
         title: "Simulation Complete",
         description: "Your future trajectory has been projected."
       });
     } catch (e: any) {
-      console.error(e);
       toast({
         variant: "destructive",
         title: "Simulation Error",
@@ -85,7 +88,15 @@ export default function DashboardPage() {
     }
   };
 
-  if (!user) return null;
+  if (isPageLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const result = activeResult;
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -101,7 +112,7 @@ export default function DashboardPage() {
                   New Decision
                 </CardTitle>
                 <CardDescription>
-                  Enter a habit (e.g., "sleep 8 hours", "spend ₹200 on coffee").
+                  Enter a habit (e.g., "sleep 8 hours daily", "spend ₹200 on coffee").
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -131,10 +142,10 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {result && (
+            {result && result.structuredInput && (
               <Card className="animate-fade-in shadow-md">
                 <CardHeader>
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Parsed Data</CardTitle>
+                  <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Current Analysis</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-dashed">
@@ -181,7 +192,7 @@ export default function DashboardPage() {
                   <MetricSummaryCard 
                     label="Money (5y)" 
                     value={`${result.metricsByHorizon[3].moneyDelta.toLocaleString()}`} 
-                    sub={result.structuredInput.unit} 
+                    sub={result.structuredInput?.unit || '₹'} 
                     trend={result.metricsByHorizon[3].moneyDelta >= 0 ? 'up' : 'down'}
                   />
                   <MetricSummaryCard 
@@ -205,7 +216,7 @@ export default function DashboardPage() {
                   <CardContent>
                     <ul className="space-y-4">
                       {result.recommendations.map((rec: string, i: number) => (
-                        <li key={i} className="flex gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                        <li key={i} className="flex gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors border-l-2 border-accent/30">
                           <div className="bg-accent/10 text-accent font-bold w-6 h-6 rounded flex items-center justify-center shrink-0 text-xs">
                             {i+1}
                           </div>
@@ -221,6 +232,14 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
 

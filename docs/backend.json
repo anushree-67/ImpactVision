@@ -1,172 +1,60 @@
+
 {
   "entities": {
     "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
+      "description": "Represents a user account.",
       "type": "object",
-      "description": "Represents a user account in the Future-You Simulator application.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the User entity."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email address.",
-          "format": "email"
-        },
-        "displayName": {
-          "type": "string",
-          "description": "The user's preferred display name."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the user account was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the user account was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "email",
-        "displayName",
-        "createdAt"
-      ]
+      "required": ["id", "email"]
     },
     "Decision": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Decision",
+      "description": "A user's habit input.",
       "type": "object",
-      "description": "Represents a user's input decision or habit that will be simulated.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Decision entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who made this decision. (Relationship: User 1:N Decision)"
-        },
-        "rawText": {
-          "type": "string",
-          "description": "The original plain text input provided by the user for the decision."
-        },
-        "structuredInput": {
-          "type": "array",
-          "description": "An array of parsed components from the raw text, representing the decision in a structured format.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the decision was recorded.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "rawText": { "type": "string" },
+        "structuredInput": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "userId",
-        "rawText",
-        "structuredInput",
-        "createdAt"
-      ]
+      "required": ["id", "userId", "rawText"]
     },
     "Simulation": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Simulation",
+      "description": "The result of a simulation run.",
       "type": "object",
-      "description": "Represents the results of a simulation run for a specific user decision.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Simulation entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who initiated the simulation. (Relationship: User 1:N Simulation)"
-        },
-        "decisionId": {
-          "type": "string",
-          "description": "Reference to the Decision that this simulation is based on. (Relationship: Decision 1:N Simulation)"
-        },
-        "results": {
-          "type": "array",
-          "description": "An array of detailed simulation results, including metrics for various time horizons and recommendations.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the simulation was performed.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "decisionId": { "type": "string" },
+        "results": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "userId",
-        "decisionId",
-        "results",
-        "createdAt"
-      ]
+      "required": ["id", "userId", "decisionId", "results"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "google"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profile information. The document ID `{userId}` must match the Firebase Authentication UID (`request.auth.uid`). The 'id' field within the document will also be identical to `{userId}`."
-        }
-      },
-      {
-        "path": "/decisions/{decisionId}",
-        "definition": {
-          "entityName": "Decision",
-          "schema": {
-            "$ref": "#/backend/entities/Decision"
-          },
-          "description": "Contains user-entered decisions. The document ID `{decisionId}` is auto-generated. Includes denormalized 'userId' field for authorization independence, which must match the Firebase Authentication UID (`request.auth.uid`). The 'id' field within the document will also be identical to `{decisionId}`.",
-          "params": [
-            {
-              "name": "decisionId",
-              "description": "Unique identifier for the decision document."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/simulations/{simulationId}",
-        "definition": {
-          "entityName": "Simulation",
-          "schema": {
-            "$ref": "#/backend/entities/Simulation"
-          },
-          "description": "Stores results of simulations. The document ID `{simulationId}` is auto-generated. Includes denormalized 'userId' field for authorization independence, which must match the Firebase Authentication UID (`request.auth.uid`). Also includes 'decisionId' to link to the originating decision. The 'id' field within the document will also be identical to `{simulationId}`.",
-          "params": [
-            {
-              "name": "simulationId",
-              "description": "Unique identifier for the simulation result document."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure for the Future-You Simulator adheres to the core design principles by prioritizing Authorization Independence, Structural Segregation, and consistent Access Modeling. Each user's data (profile, decisions, and simulations) is treated as private, ensuring that users can only access their own documents.\n\n**Authorization Independence:** This design achieves authorization independence by ensuring that all authorization-relevant information is either part of the document's path or denormalized directly within the document itself, eliminating the need for `get()` calls in security rules.\n\n1.  **`/users/{userId}`:** The `userId` wildcard in the path directly corresponds to `request.auth.uid`. Authorization rules can simply check `request.auth.uid == userId` without needing to fetch any other document.\n2.  **`/decisions/{decisionId}`:** Each `Decision` document includes a `userId` field (which corresponds to `request.auth.uid`). Security rules will check `request.auth.uid == resource.data.userId`. This denormalizes ownership information into the document itself, making it self-sufficient for authorization.\n3.  **`/simulations/{simulationId}`:** Similarly, each `Simulation` document also includes a `userId` field. Authorization rules will check `request.auth.uid == resource.data.userId`. This ensures that access to a simulation is independent of its associated decision or any parent user document, as all necessary authorization context is within the simulation document.\n\n**QAPs (Rules are not Filters):** This structure enables secure `list` operations without relying on security rules to filter results, which is a critical aspect of QAPs.\n\n1.  For **`/users/{userId}`**, direct access to `request.auth.uid` within the path ensures that a user can only retrieve their own user profile document. List queries on `/users` would generally be disallowed or highly restricted, typically only for an admin role (which is not part of this initial scope).\n2.  For **`/decisions/{decisionId}`** and **`/simulations/{simulationId}`**, the security rules will explicitly require that any query (including `list` operations) filters by `userId == request.auth.uid`. This means that client-side queries *must* include a `where('userId', '==', request.auth.uid)` clause. If a query attempts to retrieve documents belonging to another user, or fails to include this filter, the security rule will deny the request entirely, ensuring no unauthorized data is inadvertently exposed or filtered out by rules. The structure ensures a homogeneous security posture within these collections, as all documents require the same `userId`-based ownership check.\n\n**Structural Segregation and Access Modeling:** Each collection (`users`, `decisions`, `simulations`) holds documents with a consistent security posture (private to the user). The `userId` field (corresponding to `request.auth.uid`) is the consistent identifier for ownership across all document types. The use of top-level collections for `decisions` and `simulations` with the `userId` denormalized inside the document is a common and scalable pattern for user-owned private data, while still meeting the authorization independence mandate."
+    "/users/{userId}": {
+      "schema": "#/backend/entities/User",
+      "description": "User profile data."
+    },
+    "/decisions/{decisionId}": {
+      "schema": "#/backend/entities/Decision",
+      "description": "User habits."
+    },
+    "/simulations/{simulationId}": {
+      "schema": "#/backend/entities/Simulation",
+      "description": "Simulation results."
+    }
   }
 }
