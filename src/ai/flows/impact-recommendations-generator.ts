@@ -32,13 +32,13 @@ const MetricsByHorizonItemSchema = z.object({
   explanation: z.string().describe('A detailed explanation of the impact for this horizon.'),
 });
 
-export const ImpactRecommendationsGeneratorInputSchema = z.object({
+const ImpactRecommendationsGeneratorInputSchema = z.object({
   structuredInput: StructuredInputSchema.describe('The parsed user decision.'),
   metricsByHorizon: z.array(MetricsByHorizonItemSchema).describe('An array of simulation results for different time horizons.'),
 });
 export type ImpactRecommendationsGeneratorInput = z.infer<typeof ImpactRecommendationsGeneratorInputSchema>;
 
-export const ImpactRecommendationsGeneratorOutputSchema = z.array(z.string()).describe('A list of 3-5 actionable, personalized recommendations.');
+const ImpactRecommendationsGeneratorOutputSchema = z.array(z.string()).describe('A list of 3-5 actionable, personalized recommendations.');
 export type ImpactRecommendationsGeneratorOutput = z.infer<typeof ImpactRecommendationsGeneratorOutputSchema>;
 
 export async function generateImpactRecommendations(input: ImpactRecommendationsGeneratorInput): Promise<ImpactRecommendationsGeneratorOutput> {
