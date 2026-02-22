@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Navbar } from "@/components/navbar";
@@ -5,12 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy, limit } from "firebase/firestore";
-import { History, Calendar, ArrowUpRight, TrendingUp, Heart, Wallet } from "lucide-react";
+import { History, Calendar, ArrowUpRight, TrendingUp, Heart, Wallet, Box, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 export default function HistoryPage() {
   const { user, isUserLoading } = useUser();
@@ -35,124 +37,119 @@ export default function HistoryPage() {
 
   const { data: history, isLoading } = useCollection(simulationsQuery);
 
-  if (isUserLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="container mx-auto px-4 py-12 max-w-5xl">
-          <Skeleton className="h-10 w-64 mb-8" />
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-32 w-full rounded-2xl" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-cyber-gradient relative">
+      <div className="absolute inset-0 cyber-grid pointer-events-none opacity-10"></div>
       <Navbar />
-      <div className="container mx-auto px-4 py-12 max-w-5xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-          <div className="space-y-1">
-            <h1 className="text-4xl font-headline font-bold">Trajectory History</h1>
-            <p className="text-muted-foreground">Review your past projections and habit compounding analysis.</p>
+      
+      <div className="container mx-auto px-4 py-16 max-w-5xl relative z-10">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16"
+        >
+          <div className="space-y-4">
+            <h1 className="text-5xl md:text-6xl font-headline font-black text-white neon-text-glow uppercase tracking-tighter">Archives</h1>
+            <p className="text-muted-foreground/60 max-w-lg font-medium">Historical data fragments from previous temporal simulations.</p>
           </div>
-          <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3 self-start">
-            <div className="bg-primary/10 p-2 rounded-lg">
-              <History className="h-6 w-6 text-primary" />
+          <div className="glass-card p-6 rounded-2xl border-b-2 border-primary flex items-center gap-4 min-w-[200px] neon-glow-primary">
+            <div className="bg-primary/20 p-3 rounded-xl">
+              <Box className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-xs font-bold text-muted-foreground uppercase">Total Simulations</p>
-              <p className="font-bold text-2xl">{history?.length || 0}</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total Nodes</p>
+              <p className="font-bold text-3xl font-headline text-primary neon-text-glow">{history?.length || 0}</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {isLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+          <div className="space-y-6">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-40 w-full rounded-2xl bg-white/5" />
             ))}
           </div>
         ) : !history || history.length === 0 ? (
-          <Card className="text-center p-20 border-dashed bg-transparent">
-            <CardContent className="space-y-4">
-              <div className="bg-muted w-20 h-20 rounded-full flex items-center justify-center mx-auto opacity-50">
-                <History className="h-10 w-10" />
-              </div>
-              <h2 className="text-2xl font-bold">No history found</h2>
-              <p className="text-muted-foreground max-w-xs mx-auto">Start by simulating your first habit on the dashboard to see your compounding results here.</p>
-              <Link href="/dashboard" className="block mt-4">
-                <Button className="px-8">Go to Dashboard</Button>
-              </Link>
-            </CardContent>
-          </Card>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <Card className="text-center p-24 glass-card border-dashed border-2 border-white/10 bg-transparent rounded-[3rem]">
+              <CardContent className="space-y-6">
+                <div className="bg-white/5 w-24 h-24 rounded-full flex items-center justify-center mx-auto border border-white/10">
+                  <Search className="h-10 w-10 text-muted-foreground/40" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold text-white">No data fragments found</h2>
+                  <p className="text-muted-foreground/60 max-w-xs mx-auto">Begin your first simulation to populate the neural archives.</p>
+                </div>
+                <Link href="/dashboard" className="inline-block mt-4">
+                  <Button className="h-12 px-10 bg-primary text-black font-bold neon-glow-primary hover:bg-primary/90">Initialize Simulation</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </motion.div>
         ) : (
-          <div className="grid gap-4">
-            {history.map((sim: any) => {
+          <div className="grid gap-6">
+            {history.map((sim: any, idx: number) => {
               const structured = sim.results?.structuredInput;
               const metrics = sim.results?.metricsByHorizon;
               const fiveYearMetric = metrics ? metrics[metrics.length - 1] : null;
               
               return (
-                <Card key={sim.id} className="decision-card-hover group border-l-4 border-l-primary/50 overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="flex flex-col md:flex-row items-stretch">
-                      <div className="md:w-72 p-6 bg-muted/20 border-r space-y-3 flex flex-col justify-center">
-                        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(sim.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                <motion.div
+                  key={sim.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                >
+                  <Card className="glass-card overflow-hidden hover:border-primary/50 transition-all group hover:shadow-[0_0_30px_rgba(0,255,255,0.1)]">
+                    <CardContent className="p-0">
+                      <div className="flex flex-col md:flex-row items-stretch">
+                        <div className="md:w-80 p-8 bg-white/5 border-r border-white/5 space-y-4 flex flex-col justify-center">
+                          <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+                            <Calendar className="h-3 w-3 text-primary" />
+                            {new Date(sim.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                          <h3 className="text-xl font-bold leading-none text-white uppercase tracking-tighter group-hover:text-primary transition-colors">
+                             {structured?.action || 'Synthesis'}
+                          </h3>
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            <Badge variant="outline" className="capitalize text-[10px] bg-white/5 border-white/10">{structured?.category}</Badge>
+                            <Badge variant="outline" className={`capitalize text-[10px] border-none bg-opacity-20 ${fiveYearMetric?.riskLevel === 'HIGH' ? 'bg-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-primary text-primary shadow-[0_0_10px_rgba(0,255,255,0.2)]'}`}>
+                              {fiveYearMetric?.riskLevel || 'LOW'} Risk
+                            </Badge>
+                          </div>
                         </div>
-                        <h3 className="text-lg font-bold leading-tight group-hover:text-primary transition-colors capitalize">
-                           {structured?.action || 'Unknown Action'}
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="secondary" className="capitalize text-[10px]">{structured?.category}</Badge>
-                          <Badge variant="outline" className={`capitalize text-[10px] ${fiveYearMetric?.riskLevel === 'HIGH' ? 'text-destructive border-destructive/30' : 'text-accent border-accent/30'}`}>
-                            {fiveYearMetric?.riskLevel || 'N/A'} Risk
-                          </Badge>
+                        <div className="flex-1 p-8 flex flex-wrap gap-8 items-center justify-between">
+                          <div className="grid grid-cols-3 gap-12 flex-1">
+                            <HistoryMetric label="Health Index" value={`${fiveYearMetric?.healthScore ?? 0}%`} icon={<Heart className="h-4 w-4" />} />
+                            <HistoryMetric label="Wealth Delta" value={`${fiveYearMetric?.moneyDelta?.toLocaleString() || 0}`} icon={<Wallet className="h-4 w-4" />} />
+                            <HistoryMetric label="Skill Rank" value={`${fiveYearMetric?.skillScore ?? 0}%`} icon={<TrendingUp className="h-4 w-4" />} />
+                          </div>
+                          <Link href={`/dashboard?id=${sim.id}`} className="mt-4 md:mt-0">
+                            <Button variant="outline" size="lg" className="h-12 px-6 gap-2 border-primary/20 text-primary hover:bg-primary hover:text-black transition-all neon-glow-primary">
+                              Access <ArrowUpRight className="h-4 w-4" />
+                            </Button>
+                          </Link>
                         </div>
                       </div>
-                      <div className="flex-1 p-6 flex flex-wrap gap-8 items-center justify-between">
-                        <div className="grid grid-cols-3 gap-8 flex-1">
-                          <div className="space-y-1 text-center md:text-left">
-                            <p className="text-xs text-muted-foreground flex items-center justify-center md:justify-start gap-1">
-                              <Heart className="h-3 w-3" /> Health (5y)
-                            </p>
-                            <p className="font-bold text-lg">{fiveYearMetric?.healthScore ?? 0}%</p>
-                          </div>
-                          <div className="space-y-1 text-center md:text-left">
-                            <p className="text-xs text-muted-foreground flex items-center justify-center md:justify-start gap-1">
-                              <Wallet className="h-3 w-3" /> Finance (5y)
-                            </p>
-                            <p className="font-bold text-lg">{fiveYearMetric?.moneyDelta?.toLocaleString() || 0}</p>
-                          </div>
-                          <div className="space-y-1 text-center md:text-left">
-                            <p className="text-xs text-muted-foreground flex items-center justify-center md:justify-start gap-1">
-                              <TrendingUp className="h-3 w-3" /> Skill (5y)
-                            </p>
-                            <p className="font-bold text-lg">{fiveYearMetric?.skillScore ?? 0}%</p>
-                          </div>
-                        </div>
-                        <Link href={`/dashboard?id=${sim.id}`}>
-                          <Button variant="outline" size="sm" className="gap-2 group-hover:bg-primary group-hover:text-white transition-all">
-                            Details <ArrowUpRight className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               );
             })}
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function HistoryMetric({ label, value, icon }: { label: string, value: string, icon: React.ReactNode }) {
+  return (
+    <div className="space-y-2 text-center md:text-left">
+      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center justify-center md:justify-start gap-1.5">
+        {icon} {label}
+      </p>
+      <p className="font-bold text-2xl font-headline text-white neon-text-glow">{value}</p>
     </div>
   );
 }
