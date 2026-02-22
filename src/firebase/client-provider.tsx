@@ -1,31 +1,25 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { initializeFirebase } from './index';
-import { FirebaseProvider } from './provider';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import React, { useMemo, type ReactNode } from 'react';
+import { FirebaseProvider } from '@/firebase/provider';
+import { initializeFirebase } from '@/firebase';
 
-/**
- * FirebaseClientProvider ensures that Firebase is only initialized on the client side.
- * This prevents initialization errors (like "invalid-api-key") during server-side 
- * rendering and ensures a consistent state after hydration.
- */
-export function FirebaseClientProvider({ children }: { children: React.ReactNode }) {
-  const [firebase, setFirebase] = useState<{ app: any; db: any; auth: any } | null>(null);
+interface FirebaseClientProviderProps {
+  children: ReactNode;
+}
 
-  useEffect(() => {
-    // Initialize Firebase only once after the component mounts on the client
-    setFirebase(initializeFirebase());
-  }, []);
-
-  // Return null or a loading state during the brief moment before client-side initialization
-  if (!firebase) {
-    return null; 
-  }
+export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
+  const firebaseServices = useMemo(() => {
+    // Initialize Firebase on the client side, once per component mount.
+    return initializeFirebase();
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   return (
-    <FirebaseProvider app={firebase.app} db={firebase.db} auth={firebase.auth}>
-      <FirebaseErrorListener />
+    <FirebaseProvider
+      firebaseApp={firebaseServices.firebaseApp}
+      auth={firebaseServices.auth}
+      firestore={firebaseServices.firestore}
+    >
       {children}
     </FirebaseProvider>
   );

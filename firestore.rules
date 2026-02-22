@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * FUTURE-YOU SIMULATOR: SECURITY RULES CONFIGURATION
+     * 
+     * Core Philosophy: 
+     * This ruleset implements a strict Private User-Ownership model. Access is 
+     * governed by the relationship between the authenticated user and the 
+     * 'userId' field (or document ID) present on every document.
+     * 
+     * Data Structure:
+     * - /users/{userId}: Primary user profiles where the ID is the Firebase Auth UID.
+     * - /decisions/{decisionId}: User-specific inputs for simulations.
+     * - /simulations/{simulationId}: Results generated from user decisions.
+     * 
+     * Key Security Decisions:
+     * 1. Authorization Independence: All documents (Decisions, Simulations) include 
+     *    a denormalized 'userId' field. This allows rules to verify ownership 
+     *    instantly without performing expensive get() lookups on other collections.
+     * 2. Strict Privacy: There is no public or shared data in this version. 
+     *    All read/write operations require a valid, matching UID.
+     * 3. Identity-to-Path Consistency: For the users collection, we strictly 
+     *    enforce that a user's document ID must match their Authentication UID.
+     * 4. Relational Integrity: On creation, we ensure that the 'id' field within 
+     *    the document matches the auto-generated Firestore document ID.
+     */
+
+    // --- Helper Functions ---
+
+    /** @description Checks if the request is from a signed-in user. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the provided UID matches the authenticated user's UID. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Checks if the authenticated user owns the existing document for updates/deletes. */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for the User profile collection.
+     * @path /users/{userId}
+     * @allow (get) If the requester is the owner of the profile.
+     * @deny (list) If a user tries to browse other user profiles.
+     * @principle Path-based ownership: the document ID is the source of truth for identity.
+     */
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for user-created Decisions.
+     * @path /decisions/{decisionId}
+     * @allow (create) If the incoming data's userId matches the auth UID.
+     * @deny (update) If the user attempts to change the ownership (userId) of the document.
+     * @principle Field-based ownership: relies on denormalized 'userId' for fast auth checks.
+     */
+    match /decisions/{decisionId} {
+      allow get, list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.id == decisionId;
+      allow update: if isExistingOwner(resource.data.userId) && request.resource.data.userId == resource.data.userId && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(resource.data.userId);
+    }
+
+    /**
+     * @description Rules for Simulation results.
+     * @path /simulations/{simulationId}
+     * @allow (list) If the query is filtered by the user's own UID.
+     * @deny (create) If the userId in the document does not match the requester.
+     * @principle Field-based ownership and relational consistency for simulation records.
+     */
+    match /simulations/{simulationId} {
+      allow get, list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.id == simulationId;
+      allow update: if isExistingOwner(resource.data.userId) && request.resource.data.userId == resource.data.userId && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(resource.data.userId);
+    }
+  }
+}
