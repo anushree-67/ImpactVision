@@ -13,7 +13,7 @@ import {
   createUserWithEmailAndPassword, 
   signInAnonymously
 } from "firebase/auth";
-import { Sparkles, Mail, Lock, Loader2, ArrowRight, Zap, UserCircle, AlertCircle, ShieldCheck } from "lucide-react";
+import { Sparkles, Mail, Lock, Loader2, ArrowRight, Zap, UserCircle, AlertCircle, ShieldCheck, UserPlus } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +25,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("login");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -35,6 +36,15 @@ export default function LoginPage() {
 
   const handleAuth = async (isLogin: boolean) => {
     if (!auth) return;
+    if (!email || !password) {
+      toast({
+        variant: "destructive",
+        title: "Missing Credentials",
+        description: "Please enter both Neural ID and Encryption Key."
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       if (isLogin) {
@@ -50,10 +60,10 @@ export default function LoginPage() {
       let message = error.message;
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         message = isLogin 
-          ? "No record found. Did you mean to Register (Network Entry) instead?" 
-          : "Invalid signature. Ensure email is valid and password is 6+ characters.";
+          ? "No record found with these credentials. Did you mean to Register (Network Entry) instead?" 
+          : "Encryption key must be at least 6 characters and ID must be a valid email.";
       } else if (error.code === 'auth/email-already-in-use') {
-        message = "Email already in archives. Switch to Login (Neural Access).";
+        message = "This Neural ID is already in our archives. Please switch to Neural Access (Login).";
       }
 
       toast({
@@ -116,12 +126,12 @@ export default function LoginPage() {
             </CardHeader>
             
             <CardContent className="space-y-6">
-              <Tabs defaultValue="login" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-6 bg-white/5 border border-white/10 rounded-xl p-1">
-                  <TabsTrigger value="login" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-black font-bold uppercase tracking-widest text-[10px]">
+                  <TabsTrigger value="login" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-black font-bold uppercase tracking-widest text-[10px] transition-all">
                     Neural Access
                   </TabsTrigger>
-                  <TabsTrigger value="register" className="rounded-lg data-[state=active]:bg-accent data-[state=active]:text-black font-bold uppercase tracking-widest text-[10px]">
+                  <TabsTrigger value="register" className="rounded-lg data-[state=active]:bg-accent data-[state=active]:text-black font-bold uppercase tracking-widest text-[10px] transition-all">
                     Network Entry
                   </TabsTrigger>
                 </TabsList>
@@ -149,9 +159,9 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <TabsContent value="login" className="mt-0">
+                <TabsContent value="login" className="mt-0 space-y-4">
                   <Button 
-                    className="w-full h-12 bg-primary text-black font-bold neon-glow-primary hover:bg-primary/90 rounded-xl group" 
+                    className="w-full h-12 bg-primary text-black font-bold neon-glow-primary hover:bg-primary/90 rounded-xl group transition-all" 
                     onClick={() => handleAuth(true)}
                     disabled={isLoading}
                   >
@@ -161,11 +171,17 @@ export default function LoginPage() {
                       </span>
                     )}
                   </Button>
+                  <button 
+                    onClick={() => setActiveTab("register")}
+                    className="w-full text-[10px] text-muted-foreground hover:text-primary uppercase tracking-widest font-bold flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <UserPlus className="h-3 w-3" /> New here? Create a Neural Signature
+                  </button>
                 </TabsContent>
 
-                <TabsContent value="register" className="mt-0">
+                <TabsContent value="register" className="mt-0 space-y-4">
                   <Button 
-                    className="w-full h-12 bg-accent text-black font-bold neon-glow-accent hover:bg-accent/90 rounded-xl group" 
+                    className="w-full h-12 bg-accent text-black font-bold neon-glow-accent hover:bg-accent/90 rounded-xl group transition-all" 
                     onClick={() => handleAuth(false)}
                     disabled={isLoading}
                   >
@@ -175,6 +191,12 @@ export default function LoginPage() {
                       </span>
                     )}
                   </Button>
+                  <button 
+                    onClick={() => setActiveTab("login")}
+                    className="w-full text-[10px] text-muted-foreground hover:text-accent uppercase tracking-widest font-bold flex items-center justify-center gap-2 transition-colors"
+                  >
+                    Already have a signature? Access Archives
+                  </button>
                 </TabsContent>
               </Tabs>
 
@@ -207,9 +229,9 @@ export default function LoginPage() {
               <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-xl border border-primary/10">
                 <AlertCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="text-[10px] text-white font-bold uppercase tracking-widest">Temporal Log</p>
+                  <p className="text-[10px] text-white font-bold uppercase tracking-widest leading-none">Temporal Log</p>
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    If you haven't created a Neural ID yet, use the <strong>Network Entry</strong> tab or bypass security with <strong>Guest Access</strong>.
+                    If you haven't registered yet, use <strong>Network Entry</strong>. For immediate testing, <strong>Guest Access</strong> bypasses all security.
                   </p>
                 </div>
               </div>
