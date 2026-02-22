@@ -1,4 +1,4 @@
-Impact Vision
+ImpactVision
 
 Decision Impact Prediction System
 
