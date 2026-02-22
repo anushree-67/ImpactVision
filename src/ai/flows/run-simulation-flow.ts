@@ -1,0 +1,85 @@
+'use server';
+/**
+ * @fileOverview A consolidated Genkit flow for the Future-You Simulator.
+ *
+ * - runSimulation - The main function to parse input, simulate impact, and generate recommendations.
+ * - RunSimulationInput - Input schema for the simulation.
+ * - RunSimulationOutput - Output schema containing structured data and projections.
+ */
+
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
+import { parseDecisionWithRules } from '@/lib/rule-based-parser';
+import { runSimulationLogic } from '@/lib/simulation-engine';
+import { generateImpactRecommendations } from './impact-recommendations-generator';
+
+const RunSimulationInputSchema = z.object({
+  rawText: z.string().describe('The user-entered decision or habit.'),
+});
+export type RunSimulationInput = z.infer<typeof RunSimulationInputSchema>;
+
+const MetricsByHorizonSchema = z.array(z.object({
+  horizonDays: z.number(),
+  healthScore: z.number(),
+  moneyDelta: z.number(),
+  skillScore: z.number(),
+  riskLevel: z.string(),
+  explanation: z.string(),
+}));
+
+const RunSimulationOutputSchema = z.object({
+  structuredInput: z.any(),
+  metricsByHorizon: MetricsByHorizonSchema,
+  recommendations: z.array(z.string()),
+  createdAt: z.string(),
+});
+export type RunSimulationOutput = z.infer<typeof RunSimulationOutputSchema>;
+
+export async function runSimulation(input: RunSimulationInput): Promise<RunSimulationOutput> {
+  return runSimulationFlow(input);
+}
+
+const runSimulationFlow = ai.defineFlow(
+  {
+    name: 'runSimulationFlow',
+    inputSchema: RunSimulationInputSchema,
+    outputSchema: RunSimulationOutputSchema,
+  },
+  async (input) => {
+    // 1. Rule-based parsing (as requested)
+    const structuredInput = parseDecisionWithRules(input.rawText);
+
+    // 2. Run simulation logic
+    const metricsByHorizon = runSimulationLogic({
+      category: structuredInput.category,
+      action: structuredInput.action,
+      value: structuredInput.value,
+      unit: structuredInput.unit,
+      frequency: structuredInput.frequency,
+      description: `Habit: ${structuredInput.action} ${structuredInput.value} ${structuredInput.unit} ${structuredInput.frequency}`
+    });
+
+    // 3. Generate recommendations using existing AI flow
+    const recommendations = await generateImpactRecommendations({
+      structuredInput: {
+        category: structuredInput.category,
+        action: structuredInput.action,
+        amount: structuredInput.value,
+        frequency: structuredInput.frequency,
+        unit: structuredInput.unit,
+      },
+      metricsByHorizon: metricsByHorizon.map(m => ({
+        ...m,
+        riskLevel: m.riskLevel as 'LOW' | 'MEDIUM' | 'HIGH',
+        explanation: m.explanation
+      }))
+    });
+
+    return {
+      structuredInput,
+      metricsByHorizon,
+      recommendations,
+      createdAt: new Date().toISOString(),
+    };
+  }
+);

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from "react";
@@ -6,7 +5,7 @@ import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { runSimulationAction } from "@/app/actions/simulation";
+import { runSimulation } from "@/ai/flows/run-simulation-flow";
 import { SimulationCharts } from "@/components/simulation-charts";
 import { useUser, useFirestore } from "@/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
@@ -27,63 +26,59 @@ export default function DashboardPage() {
     if (!inputText || !user || !db) return;
     setIsSimulating(true);
     try {
-      const res = await runSimulationAction(inputText);
-      if (res.success) {
-        setResult(res);
-        
-        // Save to Firestore on client
-        const decisionsRef = collection(db, 'decisions');
-        const decisionData = {
-          uid: user.uid,
-          rawText: inputText,
-          structuredInput: res.structuredInput,
-          createdAt: new Date().toISOString()
-        };
+      // Call the consolidated Genkit flow
+      const res = await runSimulation({ rawText: inputText });
+      
+      setResult(res);
+      
+      // Save to Firestore on client to respect Security Rules and "Authorization Independence"
+      const decisionData = {
+        userId: user.uid,
+        rawText: inputText,
+        structuredInput: res.structuredInput,
+        createdAt: new Date().toISOString()
+      };
 
-        addDoc(decisionsRef, decisionData)
-          .then((docRef) => {
-            const simulationsRef = collection(db, 'simulations');
-            const simData = {
-              uid: user.uid,
-              decisionId: docRef.id,
-              results: {
-                metricsByHorizon: res.metricsByHorizon,
-                recommendations: res.recommendations
-              },
-              createdAt: new Date().toISOString()
-            };
-            addDoc(simulationsRef, simData).catch(async (e) => {
-               errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: simulationsRef.path,
-                operation: 'create',
-                requestResourceData: simData,
-              }));
-            });
-          })
-          .catch(async (e) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-              path: decisionsRef.path,
+      const decisionsRef = collection(db, 'decisions');
+      addDoc(decisionsRef, decisionData)
+        .then((docRef) => {
+          const simData = {
+            userId: user.uid,
+            decisionId: docRef.id,
+            results: {
+              metricsByHorizon: res.metricsByHorizon,
+              recommendations: res.recommendations
+            },
+            createdAt: new Date().toISOString()
+          };
+          
+          const simulationsRef = collection(db, 'simulations');
+          addDoc(simulationsRef, simData).catch(async (e) => {
+             errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: simulationsRef.path,
               operation: 'create',
-              requestResourceData: decisionData,
+              requestResourceData: simData,
             }));
           });
+        })
+        .catch(async (e) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: decisionsRef.path,
+            operation: 'create',
+            requestResourceData: decisionData,
+          }));
+        });
 
-        toast({
-          title: "Simulation Complete",
-          description: "We've projected your future based on this habit."
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Simulation Failed",
-          description: res.error
-        });
-      }
+      toast({
+        title: "Simulation Complete",
+        description: "Your future trajectory has been projected."
+      });
     } catch (e: any) {
+      console.error(e);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Something went wrong during simulation."
+        title: "Simulation Error",
+        description: e.message || "Something went wrong during simulation."
       });
     } finally {
       setIsSimulating(false);
@@ -98,7 +93,6 @@ export default function DashboardPage() {
       <div className="container mx-auto px-4 pt-8 max-w-6xl">
         <div className="grid lg:grid-cols-12 gap-8">
           
-          {/* Input Section */}
           <div className="lg:col-span-4 space-y-6">
             <Card className="shadow-lg border-primary/20">
               <CardHeader>
@@ -107,13 +101,13 @@ export default function DashboardPage() {
                   New Decision
                 </CardTitle>
                 <CardDescription>
-                  Describe a habit or decision in natural language.
+                  Enter a habit (e.g., "sleep 8 hours", "spend ₹200 on coffee").
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <textarea
                   className="w-full min-h-[120px] p-3 rounded-lg border bg-muted/50 focus:ring-2 focus:ring-primary outline-none text-sm transition-all"
-                  placeholder='e.g., "sleep 6 hours daily", "save ₹5000 every month", "study 2 hours daily"'
+                  placeholder='Describe your habit here...'
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                 />
@@ -125,19 +119,16 @@ export default function DashboardPage() {
                   {isSimulating ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Processing Future...
+                      Simulating...
                     </>
                   ) : (
                     <>
                       <Zap className="h-4 w-4 fill-current" />
-                      Simulate Impact
+                      Run Simulation
                     </>
                   )}
                 </Button>
               </CardContent>
-              <CardFooter className="bg-muted/30 py-3 px-6 text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                Powered by GenAI
-              </CardFooter>
             </Card>
 
             {result && (
@@ -155,7 +146,7 @@ export default function DashboardPage() {
                     <span className="text-sm font-semibold">{result.structuredInput.action}</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-dashed">
-                    <span className="text-sm text-muted-foreground">Quantity</span>
+                    <span className="text-sm text-muted-foreground">Value</span>
                     <span className="text-sm font-semibold">{result.structuredInput.value} {result.structuredInput.unit}</span>
                   </div>
                   <div className="flex justify-between items-center py-2">
@@ -167,7 +158,6 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Results Section */}
           <div className="lg:col-span-8">
             {!result ? (
               <div className="h-[500px] flex flex-col items-center justify-center text-center space-y-6 bg-white/50 border border-dashed rounded-3xl p-12">
@@ -175,21 +165,21 @@ export default function DashboardPage() {
                   <Sparkles className="h-16 w-16 text-muted-foreground/30" />
                 </div>
                 <div className="space-y-2">
-                  <h2 className="text-2xl font-headline font-bold">No Simulation Run Yet</h2>
-                  <p className="text-muted-foreground max-w-sm">Enter a habit on the left to see how it shapes your future self over the next 5 years.</p>
+                  <h2 className="text-2xl font-headline font-bold">Ready to simulate</h2>
+                  <p className="text-muted-foreground max-w-sm">Enter a habit on the left to see your projected future.</p>
                 </div>
               </div>
             ) : (
               <div className="space-y-6 animate-fade-in">
                 <div className="grid md:grid-cols-3 gap-4">
                   <MetricSummaryCard 
-                    label="Health Score" 
+                    label="Health (5y)" 
                     value={`${result.metricsByHorizon[3].healthScore}%`} 
-                    sub="at 5 years" 
+                    sub="Vitality" 
                     trend={result.metricsByHorizon[3].healthScore > 70 ? 'up' : 'down'}
                   />
                   <MetricSummaryCard 
-                    label="Financial Impact" 
+                    label="Money (5y)" 
                     value={`${result.metricsByHorizon[3].moneyDelta.toLocaleString()}`} 
                     sub={result.structuredInput.unit} 
                     trend={result.metricsByHorizon[3].moneyDelta >= 0 ? 'up' : 'down'}
@@ -197,7 +187,7 @@ export default function DashboardPage() {
                   <MetricSummaryCard 
                     label="Risk Level" 
                     value={result.metricsByHorizon[3].riskLevel} 
-                    sub="Composite risk" 
+                    sub="Overall" 
                     trend={result.metricsByHorizon[3].riskLevel === 'LOW' ? 'up' : 'down'}
                     isRisk
                   />
@@ -211,13 +201,12 @@ export default function DashboardPage() {
                       <CheckCircle2 className="h-5 w-5 text-accent" />
                       AI Recommendations
                     </CardTitle>
-                    <CardDescription>Actionable steps to optimize your trajectory.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-4">
                       {result.recommendations.map((rec: string, i: number) => (
                         <li key={i} className="flex gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                          <div className="bg-accent/10 text-accent font-bold w-6 h-6 rounded flex items-center justify-center shrink-0">
+                          <div className="bg-accent/10 text-accent font-bold w-6 h-6 rounded flex items-center justify-center shrink-0 text-xs">
                             {i+1}
                           </div>
                           <p className="text-sm leading-relaxed">{rec}</p>
@@ -241,10 +230,10 @@ function MetricSummaryCard({ label, value, sub, trend, isRisk = false }: { label
       <CardContent className="pt-6">
         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">{label}</p>
         <div className="flex items-end gap-2">
-          <h3 className={`text-3xl font-bold font-headline ${isRisk ? (value === 'HIGH' ? 'text-destructive' : value === 'MEDIUM' ? 'text-orange-500' : 'text-accent') : (trend === 'up' ? 'text-accent' : 'text-destructive')}`}>
+          <h3 className={`text-2xl font-bold font-headline ${isRisk ? (value === 'HIGH' ? 'text-destructive' : value === 'MEDIUM' ? 'text-orange-500' : 'text-accent') : (trend === 'up' ? 'text-accent' : 'text-destructive')}`}>
             {value}
           </h3>
-          <span className="text-xs text-muted-foreground mb-1">{sub}</span>
+          <span className="text-[10px] text-muted-foreground mb-1">{sub}</span>
         </div>
       </CardContent>
     </Card>
