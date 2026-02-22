@@ -49,16 +49,16 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error("Auth error:", error.code, error.message);
       
-      let message = "An unexpected error occurred. Please try again.";
+      let message = error.message;
       
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
         message = isLogin 
-          ? "No neural record found. If you're new, please select 'Create New Neural ID' below to register." 
-          : "The credentials provided are invalid. Ensure your email is correct and password is at least 6 characters.";
+          ? "No neural record found. Ensure your email is correct or create a new Neural ID." 
+          : "Invalid credentials. Ensure your email is correct and password is at least 6 characters.";
       } else if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered in the archives. Please sign in instead.";
+        message = "This email is already registered. Please sign in instead.";
       } else if (error.code === 'auth/weak-password') {
-        message = "Password must be at least 6 characters for secure encryption.";
+        message = "Password must be at least 6 characters.";
       }
 
       toast({
@@ -78,10 +78,21 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
     } catch (error: any) {
+      console.error("Google Auth Error:", error);
+      
+      let message = error.message;
+      if (error.code === 'auth/operation-not-allowed') {
+        message = "Google sign-in is not enabled. Please enable it in the Firebase Console Authentication settings.";
+      } else if (error.code === 'auth/popup-blocked') {
+        message = "The sign-in popup was blocked by your browser. Please allow popups and try again.";
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        message = "Sign-in process was cancelled.";
+      }
+
       toast({
         variant: "destructive",
         title: "Neural Link Error",
-        description: "Google authentication failed. Please retry or use another pathway."
+        description: message
       });
     } finally {
       setIsLoading(false);
@@ -222,7 +233,7 @@ export default function LoginPage() {
               <div className="flex items-start gap-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
                 <AlertCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  <strong>Developer Tip:</strong> Use <strong>Guest Access</strong> for instant entry without creating an account.
+                  <strong>Neural Tip:</strong> If Google sign-in fails, ensure you've enabled it in your Firebase Console settings or use <strong>Guest Access</strong> for instant entry.
                 </p>
               </div>
             </CardFooter>
